@@ -53,12 +53,42 @@ let persons = [
       res.status (204).end ("Entry deleted")
   })
 
-//Adding data to server
-  app.post('/api/persons', (req, res ) => {
-      const person = req.body
-      console.log(person);
-      res.json(person)
+  // Generating new id
+  const generateId = () => {  
+    const maxId = persons.length > 0
+        ? Math.max (...persons.map(n => n.id))
+        :0
+        return maxID + 1
+  }
 
+//Adding data to server
+app.post('/api/persons', (req, res) => {
+    const body = req.body
+  	const notunique = Boolean (
+		persons.find(person => person.name === body.name)
+	)
+  
+    if (!body.name || !body.number) {
+      return res.status(400).json({ 
+        error: 'Name and Number must be added' 
+      })
+    } 
+
+    else if (notunique) {
+         return res.status(404).json ({
+            error: 'Name must be unique',
+        })
+    }
+
+    
+    const person = {
+      name: body.name,
+      number: body.number,
+    }
+  
+    persons = persons.concat(person)
+  
+    res.json(person)
   })
 
 
