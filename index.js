@@ -92,6 +92,10 @@ app.post("/api/persons", (request, response) => {
         .json({ error: "Number and name are required!" });
     }
   
+
+
+
+
     // Check if name isn't already in phonebook
   
     if (persons.find((person) => person.name === body.name)) {
