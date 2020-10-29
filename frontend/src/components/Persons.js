@@ -1,27 +1,24 @@
 import React from "react";
+import Person from "./Person";
 
-const Persons = ({ data, searchTerm, onDeleteButtonClick }) => {
-  const handleDeletButtonClick = (id, name) => {
-    if (onDeleteButtonClick) {
-      onDeleteButtonClick(id, name);
-    }
-  };
-  return (
-    !!data.length &&
-    data.map(
-      (item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) && (
-          <p key={item.id}>
-            {item.name} : {item.number}
-            <button
-              onClick={handleDeletButtonClick.bind(null, item.id, item.name)}
-            >
-              Delete
-            </button>
-          </p>
-        )
-    )
-  );
-};
+const Persons = ({ filter, persons, filteredPersons, handleDelete }) => (
+  <div className="persons">
+    {filter === ""
+      ? persons?.map(person => (
+          <Person
+            key={person.name}
+            person={person}
+            handleDelete={handleDelete}
+          />
+        ))
+      : filteredPersons?.map(person => (
+          <Person
+            key={person.name}
+            person={person}
+            handleDelete={handleDelete}
+          />
+        ))}
+  </div>
+);
 
 export default Persons;

@@ -1,22 +1,12 @@
 import React from "react";
-import PropTypes from "prop-types";
 
-const Notification = ({ message, type }) => (
-  <div
-    className={`${
-      type === "unsuccessful" ? "notification--error" : "notification--success"
-    } notification`}
-  >
-    {message}
-  </div>
-);
+const Notification = ({ message, className }) => {
+  // Check for null or undefined with == instead of ===
+  if (message == null) {
+    return null;
+  }
 
-Notification.propTypes = {
-  type: PropTypes.oneOf(["successful", "unsuccessful"]),
-};
-
-Notification.defaultProps = {
-  type: "successful",
+  return <div className={className}>{message}</div>;
 };
 
 export default Notification;

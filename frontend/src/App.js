@@ -1,169 +1,189 @@
 import React, { useState, useEffect } from "react";
-import Filter from "../src/components/Filter";
-import PersonForm from "../src/components/PersonForm";
-import Persons from "../src/components/Persons";
-import personServices from "../src/services/persons";
-import Notification from "../src/components/Notification";
+import "./App.css";
+import InputField from "./components/InputField";
+import Form from "./components/Form";
+import Persons from "./components/Persons";
+import personService from "./services/persons";
+import Notification from "./components/Notification";
 
 const App = () => {
   const [persons, setPersons] = useState([]);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [notification, setNotification] = useState({});
+  const [filter, setFilter] = useState("");
+  const [filteredPersons, setFilteredPersons] = useState(null);
+  const [notificationMessage, setNotificationMessage] = useState(null);
 
-  const handleNameChange = (event) => setNewName(event.target.value);
-  const handleNumberChange = (event) => setNewNumber(event.target.value);
-
-  // get the data from the server
+  // Fetch person data from json-server
   useEffect(() => {
-    personServices
-      .getAll()
-      .then((data) => {
-        setPersons(data);
-      })
-      .catch((error) => console.warn(error));
+    personService.getAll().then((initialPersons) => {
+      setPersons(initialPersons);
+    });
   }, []);
 
-  // empty name and number input fileds
-  const emptyIputFields = () => {
-    setNewName("");
-    setNewNumber("");
+  const handleNameChange = (event) => {
+    setNewName(event.target.value);
   };
 
-  // add new data to server
-  const addFormData = () => {
-    const newData = {
+  const handleNumberChange = (event) => {
+    setNewNumber(event.target.value);
+  };
+
+  const handleFilter = (event) => {
+    setFilter(event.target.value);
+    const filtered = persons.filter((person) =>
+      // Check if the search term is included in the names in the phonebook
+      person.name.toLowerCase().includes(event.target.value.toLowerCase())
+    );
+
+    setFilteredPersons(filtered);
+  };
+
+  // submit form
+  const addPerson = (event) => {
+    event.preventDefault();
+    const newPerson = {
       name: newName,
       number: newNumber,
     };
-    personServices
-      .createData(newData)
-      .then((data) => {
-        setPersons(persons.concat(data));
-      })
-      .then(
-        setNotification({
-          message: `Added ${newData.name}.`,
-        })
-      )
-      .catch((error) => console.warn(error));
-  };
 
-  // replace the old number i.e update existing data in server
-  const updateFornData = () => {
-    const confirmNumberReplace = window.confirm(
-      `${newName} is already added to phonebook, replace the old phonenumber with new one.`
-    );
-    const itemToUpdate = persons.find((item) => item.name === newName);
-    const updatedItem = { ...itemToUpdate, number: newNumber };
-    if (confirmNumberReplace) {
-      personServices
-        .updateData(updatedItem.id, updatedItem)
-        .then((response) => {
-          setPersons(
-            persons.map((item) => (item.id === response.id ? response : item))
-          );
-          setNotification({
-            message: `Replaced ${newName}'s number.`,
-          });
-        })
-        .catch((error) => {
-          console.warn(error);
-          setNotification({
-            message: `Could not replace, as the information on ${newName} has already been removed from the server.`,
-            type: "unsuccessful",
-          });
-        });
-    }
-  };
+    // Check if person is already added to the phoneboook.
+    const alreadyExists = persons.some((person) => person.name === newName);
 
-  // hide notification
-  useEffect(() => {
-    if (notification.message) {
-      const timer = setTimeout(() => setNotification({}), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  // handle data o form submit
-  const handleFormSubmit = (event) => {
-    event.preventDefault();
-    if (!newName || !newNumber) {
-      setNotification({
-        message: "Please fill both fields.",
-        type: "unsuccessful",
-      });
+    // No name provided --> could be handled by displaying an error
+    // For now do nothing.
+    if (newName === "") {
       return;
     }
-    const isNameExist = persons.filter(
-      (item) => item.name.toLocaleLowerCase() === newName.toLowerCase()
-    ).length;
 
-    if (!isNameExist) {
-      addFormData();
-    } else {
-      updateFornData();
+    if (alreadyExists) {
+      const person = persons.find((p) => p.name === newName);
+      const changedPerson = { ...person, number: newNumber };
+      const { id } = person;
+
+      // Error handling for if the updated number is too short.
+      if (newNumber < 8) {
+        setNotificationMessage({
+          error: `${newNumber} is too short, please provide a number with at least 8 digits`,
+        });
+        setTimeout(() => {
+          setNotificationMessage(null);
+        }, 5000);
+        return;
+      }
+
+      const confirmUpdate = window.confirm(
+        `${newName} is already added to phonebook, replace the old number with a new one?`
+      );
+
+      if (confirmUpdate) {
+        personService
+          .update(id, changedPerson)
+          .then((returnedPerson) => {
+            // Update number in state
+            setPersons(
+              persons.map((person) =>
+                person.id !== id ? person : returnedPerson
+              )
+            );
+
+            setNotificationMessage({
+              notification: `Updated number for ${person.name}`,
+            });
+            setTimeout(() => {
+              setNotificationMessage(null);
+            }, 5000);
+          })
+          .catch((error) => {
+            setNotificationMessage({
+              error: `Information for ${person.name} has already been removed from server`,
+            });
+            setPersons(persons.filter((p) => p.id !== id));
+            setTimeout(() => {
+              setNotificationMessage(null);
+            }, 5000);
+          });
+      }
+      // clear input fields
+      setNewName("");
+      setNewNumber("");
+      return;
     }
-    emptyIputFields();
+
+    personService
+      .create(newPerson)
+      .then((returnedPerson) => {
+        setPersons(persons.concat(returnedPerson));
+
+        setNotificationMessage({
+          notification: `Added ${returnedPerson.name}`,
+        });
+        setTimeout(() => {
+          setNotificationMessage(null);
+        }, 5000);
+
+        // clear input fields
+        setNewName("");
+        setNewNumber("");
+      })
+      .catch((error) => {
+        setNotificationMessage(error.response.data);
+        setTimeout(() => {
+          setNotificationMessage(null);
+        }, 5000);
+      });
   };
 
-  // set filter search term
-  const handleSearch = (event) => setSearchTerm(event.target.value);
-
-  // delete data from the server
-  const handleDeleteButtonClick = (id, name) => {
-    const confirmDelete = window.confirm(`Delete ${name}?`);
+  const handleDelete = (id) => {
+    const person = persons.find((p) => p.id === id);
+    const confirmDelete = window.confirm(`Delete ${person.name}?`);
     if (confirmDelete) {
-      personServices
-        .deleteData(id)
-        .then(() => {
-          setPersons(persons.filter((item) => item.id !== id));
-          setNotification({
-            message: `Deleted ${name}'s contact successfuly.`,
-          });
-        })
-        .catch((error) => {
-          setNotification({
-            message: `The information on ${name} has already been removed from the server.`,
-            type: "unsuccessful",
-          });
-          console.warn(error);
-        });
-      emptyIputFields();
+      personService.deletePerson(id).then(() => {
+        //Update state --> filter out deleted person
+        const filteredPersons = persons.filter((person) => person.id !== id);
+        setPersons(filteredPersons);
+
+        // reset filter
+        setFilter("");
+      });
     }
   };
 
   return (
-    <>
+    <main className="container">
       <h1>Phonebook</h1>
-
-      {notification.message && (
-        <Notification
-          message={notification.message}
-          type={notification.type}
-          duratio={3000}
-        />
-      )}
-
-      <Filter searchTerm={searchTerm} handleSearch={handleSearch} />
-
-      <h2>Add a new contact</h2>
-      <PersonForm
-        onSubmit={handleFormSubmit}
-        handleNameChange={handleNameChange}
-        handleNumberChange={handleNumberChange}
-        nameValue={newName}
-        numberValue={newNumber}
+      <Notification
+        message={
+          notificationMessage?.notification || notificationMessage?.error
+        }
+        className={notificationMessage?.notification ? "notification" : "error"}
       />
 
+      {/* Filter by name */}
+      <InputField
+        label="Filter shown with"
+        htmlFor="filter"
+        type="text"
+        value={filter}
+        onChange={handleFilter}
+      />
+
+      <h2>Add a new</h2>
+      <Form
+        onSubmit={addPerson}
+        newName={newName}
+        handleNameChange={handleNameChange}
+        newNumber={newNumber}
+        handleNumberChange={handleNumberChange}
+      />
       <h2>Numbers</h2>
       <Persons
-        data={persons}
-        searchTerm={searchTerm}
-        onDeleteButtonClick={handleDeleteButtonClick}
+        filter={filter}
+        persons={persons}
+        filteredPersons={filteredPersons}
+        handleDelete={handleDelete}
       />
-    </>
+    </main>
   );
 };
 
